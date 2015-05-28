@@ -10,19 +10,19 @@
 
 using namespace std;
 
-void forceUpdate(vector<SubData>& particle,  double *p_energy) {
+void forceUpdate(vector<SubData>& particle,  double *p_energy, double simu_time) {
 
-  int const MaxPerCell = 100;
-  int    NrCells[3],MaxNrCells;
-  double scale[3];
-
+	int const MaxPerCell = 100;
+	int    NrCells[3],MaxNrCells;
+	double scale[3];
+	double CorDY;
 	int    i,j;
 	int    ii,jj;
 	int    mi[3],m,mj[3];
 	int    mini[3],maxi[3];
-	double F,r2, r;
-	vctr3D dr,dR, Fij;
-	double r2inv, r6inv, r12inv;
+	double F,rij2, rij_norm;
+	vctr3D rij, dR, Fij;
+	double rij2inv, rij6inv, rij12inv;
 	
   int    dm[13][3] = { {  0,  0,  1 },
                        {  1,  0, -1 },

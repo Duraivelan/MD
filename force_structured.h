@@ -3,6 +3,6 @@
 
 # include "defs.h"
 
-void forceUpdate(vector<SubData>& particle,  double *p_energy);
+void forceUpdate(vector<SubData>& particle,  double *p_energy,  double simu_time);
 
 #endif

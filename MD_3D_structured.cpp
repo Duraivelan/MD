@@ -55,24 +55,30 @@ std::vector<int> radialDistFunc(double XYZ[][3], double Lx,double Ly, double Lz,
 }
 
 // forceUpdate fucntion included as force.h header file
-void verlet( vector<SubData>& particle ) {
-	
+void verlet( vector<SubData>& particle , double simu_time) {
+	double CorY;
 	for(int i=0;i<NrParticles;i++) 
 	{
 		particle[i].vel+=particle[i].frc*(0.5*dt*inv_mass);
 		particle[i].pos+=particle[i].vel*dt;
+		CorY = round(particle[i].pos.comp[1]/box.comp[1]); 
+		particle[i].pos.comp[0]-=shear_rate*box.comp[1]*simu_time*CorY;			// for shear flow, lees-edwards boundary , see aleen , Tildesley page -247
+    	particle[i].vel.comp[0]-=shear_rate*box.comp[1]*CorY;					// for shear flow, lees-edwards boundary , see aleen , Tildesley page -247
 		particle[i].pos.PBC(box,rbox);
 
 	}
 }
 
-void verletB(vector<SubData>& particle, double vel_scale) {
+void verletB(vector<SubData>& particle, double vel_scale ) {
 	if(xxthermo) 
 		{
 		for(int i=0;i<NrParticles;i++) 
 			{
 				particle[i].vel+=particle[i].frc*(0.5*dt*inv_mass);
-				particle[i].vel=(particle[i].vel)*vel_scale;
+				particle[i].vel.comp[0]	=	(particle[i].vel.comp[0]-shear_rate*particle[i].pos.comp[1])*vel_scale + shear_rate*particle[i].pos.comp[1];
+				particle[i].vel.comp[1]	=	particle[i].vel.comp[1]*vel_scale;
+				particle[i].vel.comp[2]	=	particle[i].vel.comp[2]*vel_scale;
+//				particle[i].vel=(particle[i].vel)*vel_scale;
 			}
        	} 
 	else 
@@ -100,7 +106,7 @@ double shear_rate = 0.0; //shear rate
 int ifshear = 0;// set equal to 1 for shear
 std::string dataFileName="../xxx",dataFileName_new="../xxxnew" ;
 int Max_Cluster_N=NrParticles;
-double simu_time=dt;
+double simu_time=0;
 int step=0, nSteps=10000, frame=100;
 double vel_scale;
 int if_Periodic =1;
@@ -243,20 +249,20 @@ outFile3<<"simu_time"<<'\t'<<"Pxx"<<'\t'<<"Pyy"<<'\t'<<"Pzz"<<'\t'<<"Pxy"<<'\t'<
 }
 */
 step = 0;
-forceUpdate(particle, &p_energy);
+forceUpdate(particle, &p_energy, simu_time);
 
 simu_time =dt;
 do {
 	p_energy=0;	
 	
-	verlet( particle )	;
+	verlet( particle, simu_time )	;
 	
- 	forceUpdate( particle, &p_energy);
+ 	forceUpdate( particle, &p_energy ,simu_time );
 
 	K_Energy=0;
 	for ( int i = 0 ; i < NrParticles; i ++ )
 			{
-						K_Energy+=0.5*m*(particle[i].vel.comp[0]*particle[i].vel.comp[0]
+						K_Energy+=0.5*m*((particle[i].vel.comp[0]-shear_rate*particle[i].pos.comp[1])*(particle[i].vel.comp[0]-shear_rate*particle[i].pos.comp[1])
 									   + particle[i].vel.comp[1]*particle[i].vel.comp[1]
 									   + particle[i].vel.comp[2]*particle[i].vel.comp[2]);
 	}
@@ -286,6 +292,7 @@ if (step%frame==0) {
 	outFile3<<Temp<<'\t'<<std::endl;
 	
 	step+=1;
+	simu_time +=dt;
 	vel_scale = sqrt(1.0+(T0/Temp-1.0)*(dt/tauT));
 
 	verletB( particle , vel_scale) ;
