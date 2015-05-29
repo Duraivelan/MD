@@ -23,6 +23,21 @@ void forceUpdate(vector<SubData>& particle,  double *p_energy, double simu_time)
 	double F,rij2, rij_norm;
 	vctr3D rij, dR, Fij;
 	double rij2inv, rij6inv, rij12inv;
+	int IIX;
+	double 	STRAIN ;
+	
+	    
+  for ( i = 0 ; i < 3 ; i++ )
+  {
+    NrCells[i] = ceil ( box.comp[i] / (r_cut) ); // cellnr runs from 0 to NrCells-1
+    scale  [i] = NrCells[i] * rbox.comp[i];
+    if ( NrCells[i] < 3 ) { cout << "*** NrCells[" << i << "] = " << NrCells[i] << endl ; abort(); }
+  }
+
+	STRAIN = shear_rate*box.comp[1]*simu_time;    
+    STRAIN = STRAIN - box.comp[x]*round(STRAIN/box.comp[x]); // converting the x-displacement (delx) to no. cells, first round delx between -box/2 to box/2 since delx greater than that will be remapped into the box due to x-periodic boundaries 
+	STRAIN = STRAIN/box.comp[x];  // expressing delR in terms of box length as -1/2 to 1/2 instead of -box/2 to box/2
+	IIX = (STRAIN+1)*(NrCells[x]);  // now convert the rounded delx into no. of cells in x-direction
 	
   int    dm[13][3] = { {  0,  0,  1 },
                        {  1,  0, -1 },
@@ -36,15 +51,25 @@ void forceUpdate(vector<SubData>& particle,  double *p_energy, double simu_time)
                        {  0,  1,  1 },
                        {  1,  1, -1 },
                        {  1,  1,  0 },
-                       {  1,  1,  1 } };
+                       {  1,  1,  1 } };  
+                       
+  int  dm_top[16][3] = { {  0,  0,  1 },
+                       {  1,  0, -1 },
+                       {  1,  0,  0 },
+                       {  1,  0,  1 },
+                       { -1-IIX,  1, -1 },
+                       { -1-IIX,  1,  0 },
+                       { -1-IIX,  1,  1 },
+                       {  0-IIX,  1, -1 },
+                       {  0-IIX,  1,  0 },
+                       {  0-IIX,  1,  1 },
+                       {  1-IIX,  1, -1 },
+                       {  1-IIX,  1,  0 },
+                       {  1-IIX,  1,  1 },                        
+                       {  -2-IIX,  1, -1 },
+                       {  -2-IIX,  1,  0 },
+                       {  -2-IIX,  1,  1 } };
 	
-    
-  for ( i = 0 ; i < 3 ; i++ )
-  {
-    NrCells[i] = ceil ( box.comp[i] / (r_cut) ); // cellnr runs from 0 to NrCells-1
-    scale  [i] = NrCells[i] * rbox.comp[i];
-    if ( NrCells[i] < 3 ) { cout << "*** NrCells[" << i << "] = " << NrCells[i] << endl ; abort(); }
-  }
 
 
 // periodic boundary conditions
@@ -65,6 +90,15 @@ void forceUpdate(vector<SubData>& particle,  double *p_energy, double simu_time)
     periodN[NrCells[j] + 1][j] = 0;          // right neigbour of rightmost cell
     periodR[NrCells[j] + 1][j] = +box.comp[j];
   } // j
+
+ 
+for ( i =  NrCells[x] + 2  ;  i < (NrCells[x] +  0.5*NrCells[x] +1) ; i++ )
+    {
+      periodN[i][x] = i-NrCells[x]- 1; // same cell
+      periodR[i][x] = 0.;
+    } // i
+
+
 
 // generate grid list
 //	vector<vector<vector<vector<int>>>>  grid(NrCells[x],vector<vector<vector<int>>>(NrCells[y],vector<vector<int>>(NrCells[z],vector<int>(10,0))));
@@ -126,7 +160,7 @@ for ( int i = 0 ; i < NrParticles ; i ++ )
 
   for ( mi[x] = 0 ; mi[x] < NrCells[x] ; mi[x]++ )
   {
-    for ( mi[y] = 0 ; mi[y] < NrCells[y] ; mi[y]++ )
+    for ( mi[y] = 0 ; mi[y] < NrCells[y] -1 ; mi[y]++ )
     {
       for ( mi[z] = 0 ; mi[z] < NrCells[z] ; mi[z]++ )
       {
@@ -166,6 +200,48 @@ for ( int i = 0 ; i < NrParticles ; i ++ )
     } // miy
   } // mix
 
+
+  for ( mi[x] = 0 ; mi[x] < NrCells[x] ; mi[x]++ )
+  {
+    for ( mi[y] = NrCells[y] -1 ; mi[y] < NrCells[y] ; mi[y]++ )
+    {
+      for ( mi[z] = 0 ; mi[z] < NrCells[z] ; mi[z]++ )
+      {
+        for ( ii = 1 ; ii <= grid[mi[x]][mi[y]][mi[z]][0] ; ii++ )
+        {
+          i = grid[mi[x]][mi[y]][mi[z]][ii];
+
+          // particle j in same cell as i
+          dR = null3D;
+          for ( jj = ii + 1 ; jj <= grid[mi[x]][mi[y]][mi[z]][0] ; jj++ )
+          {
+			j = grid[mi[x]][mi[y]][mi[z]][jj];
+
+			#include "pairforce_structured.h"
+
+          } // jj
+
+          // particle j in neighbour cell to i
+          for ( m = 0 ; m < 17 ; m++ )
+          {
+            mj[x]      = periodN[ mi[x] + dm_top[m][x] + 1 ][x];
+            mj[y]      = periodN[ mi[y] + dm_top[m][y] + 1 ][y];
+            mj[z]      = periodN[ mi[z] + dm_top[m][z] + 1 ][z];
+            dR.comp[x] = periodR[ mi[x] + dm_top[m][x] + 1 ][x];
+            dR.comp[y] = periodR[ mi[y] + dm_top[m][y] + 1 ][y];
+            dR.comp[z] = periodR[ mi[z] + dm_top[m][z] + 1 ][z];
+            for ( jj = 1 ; jj <= grid[mj[x]][mj[y]][mj[z]][0] ; jj++ )
+            {
+				j = grid[mj[x]][mj[y]][mj[z]][jj];
+
+				#include "pairforce_structured.h"
+
+            } // jj
+          } // m
+        } // ii
+      } // miz
+    } // miy
+  } // mix
 }
 
 
