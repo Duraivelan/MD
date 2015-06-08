@@ -101,7 +101,7 @@ int main() {
 int if_create_particles = xxcreate, ifrestart=xxrestart;
          
 double kb=1.0 , T0=1.0, tauT=0.1;
-double Temp=0.0;
+double Temp=T0;
 double shear_rate = 0.0; //shear rate
 int ifshear = 0;// set equal to 1 for shear
 std::string dataFileName="../xxx",dataFileName_new="../xxxnew" ;
@@ -155,8 +155,13 @@ else {
         currentLine >> particle[i].vel.comp[0];
         currentLine >> particle[i].vel.comp[1];
         currentLine >> particle[i].vel.comp[2];
-
+        Temp+=0.5*m*(particle[i].vel.comp[0]*particle[i].vel.comp[0]
+				   + particle[i].vel.comp[1]*particle[i].vel.comp[1]
+				   + particle[i].vel.comp[2]*particle[i].vel.comp[2]);
     }
+    	Temp=(Temp)/(1.5*NrParticles*kb);
+		vel_scale = sqrt(T0/Temp);
+		std::cout<<Temp<<'\t'<<vel_scale<<std::endl;    
 }	
 } else {
 
@@ -189,13 +194,8 @@ else {
     	std::istringstream currentLine1(line1);
         currentLine1 >> particle[i].vel.comp[0];
         currentLine1 >> particle[i].vel.comp[1];
-        currentLine1 >> particle[i].vel.comp[2];  
-        Temp+=0.5*m*(particle[i].vel.comp[0]*particle[i].vel.comp[0]
-				   + particle[i].vel.comp[1]*particle[i].vel.comp[1]
-				   + particle[i].vel.comp[2]*particle[i].vel.comp[2]);
-              
+        currentLine1 >> particle[i].vel.comp[2];                
     }
-    	Temp=(Temp)/(1.5*NrParticles*kb);
 		vel_scale = sqrt(T0/Temp);
 		std::cout<<Temp<<'\t'<<vel_scale<<std::endl;
 
